@@ -2,7 +2,7 @@ from PySide6.QtGui import QKeySequence
 from PySide6.QtWidgets import QApplication, QDialogButtonBox
 
 from voiceanywhere.app import SettingsDialog
-from voiceanywhere.models import AppSettings
+from voiceanywhere.models import AppSettings, VoiceMode
 
 
 def test_settings_dialog_save_button_accepts_and_returns_typed_key() -> None:
@@ -16,6 +16,16 @@ def test_settings_dialog_save_button_accepts_and_returns_typed_key() -> None:
     _, key, clear_key = dialog.values()
     assert key == "test-key"
     assert clear_key is False
+    dialog.deleteLater()
+    _ = app
+
+
+def test_settings_dialog_converts_qt_mode_data_back_to_voice_mode() -> None:
+    app = QApplication.instance() or QApplication([])
+    dialog = SettingsDialog(AppSettings(), has_key=False)
+    dialog.mode.setCurrentIndex(1)
+    settings, _, _ = dialog.values()
+    assert settings.mode == VoiceMode.TRANSCRIBE_ONLY
     dialog.deleteLater()
     _ = app
 

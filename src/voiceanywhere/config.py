@@ -149,7 +149,8 @@ class SettingsStore:
     def save(self, settings: AppSettings) -> None:
         self.root.mkdir(parents=True, exist_ok=True)
         payload = asdict(settings)
-        payload["mode"] = settings.mode.value
+        mode = settings.mode if isinstance(settings.mode, VoiceMode) else VoiceMode(str(settings.mode))
+        payload["mode"] = mode.value
         temporary = self.path.with_suffix(".tmp")
         temporary.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
         temporary.replace(self.path)

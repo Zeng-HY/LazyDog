@@ -24,6 +24,12 @@ def test_settings_round_trip(tmp_path) -> None:
     assert store.load() == expected
 
 
+def test_settings_store_accepts_legacy_string_mode(tmp_path) -> None:
+    store = SettingsStore(tmp_path)
+    store.save(AppSettings(mode="faithful"))
+    assert store.load().mode == VoiceMode.FAITHFUL
+
+
 def test_dpapi_secret_is_readable_only_for_current_user_and_not_plaintext(tmp_path) -> None:
     secrets = DpapiSecretStore(tmp_path)
     secrets.set("openrouter_api_key", "unit-test-secret")

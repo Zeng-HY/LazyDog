@@ -165,10 +165,15 @@ class SettingsDialog(QDialog):
     def values(self) -> tuple[AppSettings, str | None, bool]:
         hotkey = self.hotkey.keySequence().toString(QKeySequence.SequenceFormat.PortableText)
         parse_hotkey(hotkey)
+        mode_value = self.mode.currentData()
+        try:
+            mode = mode_value if isinstance(mode_value, VoiceMode) else VoiceMode(str(mode_value))
+        except ValueError as exc:
+            raise ValueError("默认模式无效") from exc
         settings = AppSettings(
             microphone=self.microphone.currentData(),
             hotkey=hotkey,
-            mode=self.mode.currentData(),
+            mode=mode,
             output_language=self.language.currentData(),
             terms=parse_terms(self.terms.toPlainText()),
         )
