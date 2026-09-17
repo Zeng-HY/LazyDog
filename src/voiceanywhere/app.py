@@ -36,7 +36,6 @@ from voiceanywhere.storage import LocalStore
 from voiceanywhere.windows import (
     Clipboard,
     DeliveryService,
-    InputActivityMonitor,
     KeyboardInjector,
     NativeHotkeyFilter,
     TargetManager,
@@ -244,13 +243,10 @@ class VoiceAnywhereApp:
         self.application.installNativeEventFilter(self.hotkeys)
         self.hotkeys.triggered.connect(self._on_hotkey)
 
-        self.activity = InputActivityMonitor()
-        activity_monitor_available = self.activity.install()
         self.controller = VoiceSessionController(
             settings_provider=lambda: self.settings,
             api_key_provider=lambda: self.settings_store.secrets.get("openrouter_api_key"),
             target_manager=TargetManager(),
-            activity_monitor=self.activity,
             delivery_service=DeliveryService(TargetManager(), Clipboard(), KeyboardInjector()),
             service_client=OpenRouterClient(),
             local_store=self.local_store,
@@ -290,8 +286,6 @@ class VoiceAnywhereApp:
             self.hotkeys.register_main(self.settings.hotkey)
         except (ValueError, RuntimeError) as exc:
             self._show_status(f"默认快捷键不可用：{exc}")
-        if not activity_monitor_available:
-            self._show_status("无法监测会话期间的输入操作；结果将只保留，不会自动插入")
         self.application.aboutToQuit.connect(self.shutdown)
 
     def _on_hotkey(self, kind: str) -> None:
@@ -383,7 +377,6 @@ class VoiceAnywhereApp:
         self.hotkeys.unregister_main()
         self.hotkeys.unregister_cancel()
         self.application.removeNativeEventFilter(self.hotkeys)
-        self.activity.uninstall()
         self.controller.shutdown()
 
 

@@ -346,29 +346,32 @@ class DeliveryService:
         self.clipboard = clipboard
         self.keyboard = keyboard
 
-    def deliver(self, target: TargetSnapshot, text: str, input_invalidated: bool) -> DeliveryResult:
-        if input_invalidated:
-            return DeliveryResult(False, "录音后检测到输入操作，结果已保留，未自动插入")
+    def deliver(self, target: TargetSnapshot, text: str) -> DeliveryResult:
         if not self.target_manager.is_still_target(target):
-            return DeliveryResult(False, "输入目标已变化，结果已保留，未自动插入")
+            if self.clipboard.set_text(text) is not None:
+                return DeliveryResult(False, "输入目标已变化，结果已复制，可直接粘贴")
+            return DeliveryResult(False, "输入目标已变化，且无法写入剪贴板")
         snapshot = self.clipboard.snapshot_text()
         if snapshot is None:
             if self.target_manager.allows_unicode_fallback(target, text) and self.keyboard.unicode_text(text):
                 return DeliveryResult(True)
-            return DeliveryResult(False, "剪贴板包含无法无损保护的数据，结果已保留，请点击复制")
+            if self.clipboard.set_text(text) is not None:
+                return DeliveryResult(False, "原剪贴板无法保留，结果已复制，可直接粘贴")
+            return DeliveryResult(False, "无法插入或写入剪贴板，结果已保留")
         _prior_sequence, prior_text = snapshot
         temporary_sequence = self.clipboard.set_text(text)
         if temporary_sequence is None:
             return DeliveryResult(False, "无法安全使用剪贴板，结果已保留，请点击复制")
         if not self.target_manager.is_still_target(target):
-            self.clipboard.restore_text(prior_text, temporary_sequence)
-            return DeliveryResult(False, "输入目标已变化，结果已保留，未自动插入")
+            return DeliveryResult(False, "输入目标已变化，结果已复制，可直接粘贴")
         if not self.keyboard.paste():
-            self.clipboard.restore_text(prior_text, temporary_sequence)
-            return DeliveryResult(False, "未能插入文字，结果已保留，请点击复制")
+            return DeliveryResult(False, "未能插入文字，结果已复制，可直接粘贴")
         time.sleep(0.15)
         self.clipboard.restore_text(prior_text, temporary_sequence)
         return DeliveryResult(True)
+
+    def copy_to_clipboard(self, text: str) -> bool:
+        return bool(text) and self.clipboard.set_text(text) is not None
 
 
 class InputActivityMonitor:

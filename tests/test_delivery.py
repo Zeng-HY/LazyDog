@@ -19,11 +19,13 @@ class FakeClipboard:
         self.snapshot = snapshot
         self.temporary = temporary
         self.restores = []
+        self.copied = []
 
     def snapshot_text(self):
         return self.snapshot
 
-    def set_text(self, _text):
+    def set_text(self, text):
+        self.copied.append(text)
         return self.temporary
 
     def restore_text(self, text, sequence):
@@ -49,23 +51,25 @@ TARGET = TargetSnapshot(1, 1)
 def test_delivery_restores_plain_text_clipboard_after_one_paste() -> None:
     clipboard = FakeClipboard()
     service = DeliveryService(FakeTargetManager(), clipboard, FakeKeyboard())
-    result = service.deliver(TARGET, "新的文字", False)
+    result = service.deliver(TARGET, "新的文字")
     assert result.inserted
     assert clipboard.restores == [("old", 11)]
 
 
-def test_delivery_never_touches_clipboard_when_target_changed() -> None:
+def test_delivery_copies_result_when_target_changed() -> None:
     clipboard = FakeClipboard()
     service = DeliveryService(FakeTargetManager(valid=False), clipboard, FakeKeyboard())
-    result = service.deliver(TARGET, "新的文字", False)
+    result = service.deliver(TARGET, "新的文字")
     assert not result.inserted
     assert "目标已变化" in result.reason
     assert clipboard.restores == []
+    assert clipboard.copied == ["新的文字"]
 
 
-def test_delivery_rejects_unsafe_clipboard_without_verified_fallback() -> None:
+def test_delivery_copies_result_when_original_clipboard_cannot_be_preserved() -> None:
     clipboard = FakeClipboard(snapshot=None)
     service = DeliveryService(FakeTargetManager(unicode_ok=False), clipboard, FakeKeyboard())
-    result = service.deliver(TARGET, "新的文字", False)
+    result = service.deliver(TARGET, "新的文字")
     assert not result.inserted
     assert "剪贴板" in result.reason
+    assert clipboard.copied == ["新的文字"]

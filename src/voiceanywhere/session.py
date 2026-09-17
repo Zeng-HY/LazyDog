@@ -19,10 +19,11 @@ from voiceanywhere.models import (
 )
 from voiceanywhere.services import OpenRouterClient, ServiceError
 from voiceanywhere.storage import LocalStore
-from voiceanywhere.windows import DeliveryService, InputActivityMonitor, TargetManager
+from voiceanywhere.windows import DeliveryService, TargetManager
 
 
-PROCESSING_TIMEOUT_SECONDS = 10.0
+PROCESSING_TIMEOUT_SECONDS = 30.0
+SLOW_PROCESSING_SECONDS = 4.0
 
 
 @dataclass(frozen=True)
@@ -46,7 +47,6 @@ class VoiceSessionController(QObject):
         settings_provider: Callable[[], AppSettings],
         api_key_provider: Callable[[], str | None],
         target_manager: TargetManager,
-        activity_monitor: InputActivityMonitor,
         delivery_service: DeliveryService,
         service_client: OpenRouterClient,
         local_store: LocalStore,
@@ -55,7 +55,6 @@ class VoiceSessionController(QObject):
         self._settings_provider = settings_provider
         self._api_key_provider = api_key_provider
         self.target_manager = target_manager
-        self.activity_monitor = activity_monitor
         self.delivery_service = delivery_service
         self.service_client = service_client
         self.local_store = local_store
@@ -66,7 +65,6 @@ class VoiceSessionController(QObject):
         self._asr: BatchAsrSession | None = None
         self._api_key = ""
         self._deadline = 0.0
-        self._auto_delivery_expired = False
         self.latest: LatestResult | None = None
         self.worker_completed.connect(self._on_worker_completed)
 
@@ -108,9 +106,7 @@ class VoiceSessionController(QObject):
         self._target = target
         self._asr = asr
         self._api_key = api_key
-        self._auto_delivery_expired = False
         self.latest = LatestResult(session_id=self._token, app_style=target.app_style)
-        self.activity_monitor.begin()
         self._set_state(SessionState.RECORDING)
         self.status_changed.emit("正在听")
         QTimer.singleShot(MAX_SECONDS * 1000, lambda: self._on_maximum_duration(self._token))
@@ -120,7 +116,6 @@ class VoiceSessionController(QObject):
         if self._state != SessionState.RECORDING or self._asr is None or self.latest is None:
             return
         token = self._token
-        self.activity_monitor.ignore_input_for()
         try:
             wav_bytes = self._asr.stop_capture()
         except Exception as exc:
@@ -135,7 +130,7 @@ class VoiceSessionController(QObject):
         self._deadline = self.latest.stopped_at_monotonic + PROCESSING_TIMEOUT_SECONDS
         self._set_state(SessionState.PROCESSING)
         self.status_changed.emit("正在识别")
-        QTimer.singleShot(int(PROCESSING_TIMEOUT_SECONDS * 1000), lambda: self._on_processing_timeout(token))
+        QTimer.singleShot(int(SLOW_PROCESSING_SECONDS * 1000), lambda: self._on_slow_processing(token))
         settings = self._settings_provider()
         self._executor.submit(
             self._run_worker, token, wav_bytes, settings, self._api_key, self._deadline, self._target.app_style
@@ -148,7 +143,6 @@ class VoiceSessionController(QObject):
         self._token = None
         if self._asr is not None:
             self._asr.cancel()
-        self.activity_monitor.end()
         self._set_state(SessionState.IDLE)
         if self.latest and self.latest.session_id == token:
             self.latest.issue = message
@@ -213,29 +207,24 @@ class VoiceSessionController(QObject):
                 (time.monotonic() - self.latest.stopped_at_monotonic) * 1000
             )
         if packet.error or packet.composed is None:
+            if packet.transcript and self.delivery_service.copy_to_clipboard(packet.transcript):
+                self.latest.result_text = packet.transcript
+                self._finish_without_delivery(f"{packet.error or '整理未完成'}；原转写已复制，可直接粘贴")
+                return
             self._finish_without_delivery(packet.error or "整理未完成，可查看原转写")
             return
         self.latest.result_text = packet.composed.text
         self.latest.attention = packet.composed.attention
-        if self._auto_delivery_expired or time.monotonic() > self._deadline:
-            self._finish_without_delivery("处理超过10秒，结果已保留，未自动插入")
-            return
-        if packet.composed.attention:
-            self._finish_without_delivery("存在需确认的具体疑点，结果已保留，未自动插入")
-            return
-        delivery = self.delivery_service.deliver(
-            self._target, packet.composed.text, self.activity_monitor.invalidated
-        )
+        delivery = self.delivery_service.deliver(self._target, packet.composed.text)
         if delivery.inserted:
             self._finish("已插入", True)
         else:
             self._finish_without_delivery(delivery.reason)
 
-    def _on_processing_timeout(self, token: str | None) -> None:
+    def _on_slow_processing(self, token: str | None) -> None:
         if token != self._token or self._state != SessionState.PROCESSING:
             return
-        self._auto_delivery_expired = True
-        self.status_changed.emit("仍在处理；完成后会保留结果，不会自动插入")
+        self.status_changed.emit("仍在处理；完成后会直接插入或复制结果")
 
     def _on_maximum_duration(self, token: str | None) -> None:
         if token == self._token and self._state == SessionState.RECORDING:
@@ -250,7 +239,6 @@ class VoiceSessionController(QObject):
             self.latest.issue = "" if inserted else message
             self.latest_changed.emit(self.latest)
             self.local_store.append_metric(self.latest, message, inserted)
-        self.activity_monitor.end()
         self._asr = None
         self._target = None
         self._api_key = ""
