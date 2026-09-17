@@ -1,6 +1,6 @@
 # VoiceAnywhere iOS 17 测试版
 
-这是供实体 iPhone 测试的独立 SwiftUI App：主动录音、批量识别、自动默认策略整理、复制或系统分享。它不做自定义键盘、全局输入或自动发送。
+这是供实体 iPhone 测试的独立 SwiftUI App：主动录音、使用同一个 OpenRouter Key 通过 `openai/gpt-transcribe` 批量识别、自动默认策略整理、复制或系统分享。它不做自定义键盘、全局输入或自动发送。
 
 ## 在 Mac 上测试
 

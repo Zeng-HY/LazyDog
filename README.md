@@ -9,7 +9,7 @@ uv sync --extra dev
 uv run voiceanywhere
 ```
 
-首次运行请在“设置”中保存 OpenRouter API Key，并选择可用麦克风。录音会发送到 OpenRouter 的 `openai/whisper-large-v3`；最终转写和已启用词条会发送到 `openai/gpt-5.6-luna`。本地默认只在内存保留最近一次会话；点击“保存问题案例”才会写入本地案例目录。
+首次运行请在“设置”中保存 OpenRouter API Key，并选择可用麦克风。录音会使用同一个 OpenRouter Key 发送到 `openai/gpt-transcribe`；最终转写和已启用词条会发送到 `openai/gpt-5.6-luna`。本地默认只在内存保留最近一次会话；点击“保存问题案例”才会写入本地案例目录。
 
 配置目录为 `%LOCALAPPDATA%\VoiceAnywhere`。API Key 使用当前 Windows 用户的 DPAPI 加密，不写入项目文件、普通日志或案例。
 

@@ -42,7 +42,7 @@ struct OpenRouterClient: VoiceNetworking {
         request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
         request.httpBody = MultipartBody.make(
             boundary: boundary,
-            fields: ["model": "openai/whisper-large-v3"],
+            fields: ["model": "openai/gpt-transcribe"],
             fileName: "voice.m4a",
             mimeType: "audio/mp4",
             data: audioData

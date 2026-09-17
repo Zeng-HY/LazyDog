@@ -25,7 +25,7 @@ class LocalStore:
             "status": status,
             "inserted": inserted,
             "app_style": result.app_style,
-            "model_config": {"asr": "openai/whisper-large-v3", "compose": "openai/gpt-5.6-luna"},
+            "model_config": {"asr": "openai/gpt-transcribe", "compose": "openai/gpt-5.6-luna"},
             "timings_ms": result.timings_ms,
         }
         with self.metrics_path.open("a", encoding="utf-8") as handle:
@@ -49,7 +49,7 @@ class LocalStore:
             "app_category": result.app_style,
             "nearby_text": "",
             "active_terms": [],
-            "model_config_label": "openai/whisper-large-v3 + openai/gpt-5.6-luna",
+            "model_config_label": "openai/gpt-transcribe + openai/gpt-5.6-luna",
             "timings_ms": result.timings_ms,
         }
         json_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")

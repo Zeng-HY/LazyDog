@@ -18,7 +18,7 @@ from voiceanywhere.playground_contract import (
 
 
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
-ASR_MODEL = "openai/whisper-large-v3"
+ASR_MODEL = "openai/gpt-transcribe"
 COMPOSE_MODEL = "openai/gpt-5.6-luna"
 
 
