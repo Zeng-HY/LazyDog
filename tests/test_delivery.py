@@ -3,15 +3,11 @@ from voiceanywhere.windows import DeliveryService
 
 
 class FakeTargetManager:
-    def __init__(self, valid: bool = True, unicode_ok: bool = False) -> None:
+    def __init__(self, valid: bool = True) -> None:
         self.valid = valid
-        self.unicode_ok = unicode_ok
 
     def is_still_target(self, _target) -> bool:
         return self.valid
-
-    def allows_unicode_fallback(self, _target, _text: str) -> bool:
-        return self.unicode_ok
 
 
 class FakeClipboard:
@@ -37,11 +33,13 @@ class FakeKeyboard:
     def __init__(self, pasted: bool = True, unicode_inserted: bool = True) -> None:
         self.pasted = pasted
         self.unicode_inserted = unicode_inserted
+        self.typed = []
 
     def paste(self) -> bool:
         return self.pasted
 
-    def unicode_text(self, _text: str) -> bool:
+    def unicode_text(self, text: str) -> bool:
+        self.typed.append(text)
         return self.unicode_inserted
 
 
@@ -66,10 +64,22 @@ def test_delivery_copies_result_when_target_changed() -> None:
     assert clipboard.copied == ["新的文字"]
 
 
-def test_delivery_copies_result_when_original_clipboard_cannot_be_preserved() -> None:
+def test_delivery_types_result_when_original_clipboard_cannot_be_preserved() -> None:
     clipboard = FakeClipboard(snapshot=None)
-    service = DeliveryService(FakeTargetManager(unicode_ok=False), clipboard, FakeKeyboard())
+    keyboard = FakeKeyboard()
+    service = DeliveryService(FakeTargetManager(), clipboard, keyboard)
+    result = service.deliver(TARGET, "新的文字")
+    assert result.inserted
+    assert keyboard.typed == ["新的文字"]
+    assert clipboard.copied == []
+
+
+def test_delivery_copies_result_when_unicode_fallback_is_rejected() -> None:
+    clipboard = FakeClipboard(snapshot=None)
+    keyboard = FakeKeyboard(unicode_inserted=False)
+    service = DeliveryService(FakeTargetManager(), clipboard, keyboard)
     result = service.deliver(TARGET, "新的文字")
     assert not result.inserted
     assert "剪贴板" in result.reason
+    assert keyboard.typed == ["新的文字"]
     assert clipboard.copied == ["新的文字"]

@@ -27,7 +27,6 @@ MOD_WIN = 0x0008
 VK_ESCAPE = 0x1B
 GWL_STYLE = -16
 ES_PASSWORD = 0x0020
-ES_MULTILINE = 0x0004
 CF_TEXT = 1
 CF_OEMTEXT = 7
 CF_UNICODETEXT = 13
@@ -231,14 +230,6 @@ class TargetManager:
             return False
         return True
 
-    def allows_unicode_fallback(self, snapshot: TargetSnapshot, text: str) -> bool:
-        if not snapshot.focus_hwnd or "\n" in text or "\r" in text:
-            return False
-        if snapshot.focus_class.lower() != "edit":
-            return False
-        style = int(user32.GetWindowLongPtrW(snapshot.focus_hwnd, GWL_STYLE) or 0)
-        return not bool(style & ES_MULTILINE) and not bool(style & ES_PASSWORD)
-
     @staticmethod
     def _app_style(process_name: str) -> str:
         if "wechat" in process_name or "weixin" in process_name:
@@ -353,7 +344,9 @@ class DeliveryService:
             return DeliveryResult(False, "输入目标已变化，且无法写入剪贴板")
         snapshot = self.clipboard.snapshot_text()
         if snapshot is None:
-            if self.target_manager.allows_unicode_fallback(target, text) and self.keyboard.unicode_text(text):
+            # A rich clipboard cannot be restored faithfully. Do not replace it:
+            # type directly into the still-valid foreground control instead.
+            if self.keyboard.unicode_text(text):
                 return DeliveryResult(True)
             if self.clipboard.set_text(text) is not None:
                 return DeliveryResult(False, "原剪贴板无法保留，结果已复制，可直接粘贴")
@@ -361,10 +354,14 @@ class DeliveryService:
         _prior_sequence, prior_text = snapshot
         temporary_sequence = self.clipboard.set_text(text)
         if temporary_sequence is None:
+            if self.target_manager.is_still_target(target) and self.keyboard.unicode_text(text):
+                return DeliveryResult(True)
             return DeliveryResult(False, "无法安全使用剪贴板，结果已保留，请点击复制")
         if not self.target_manager.is_still_target(target):
             return DeliveryResult(False, "输入目标已变化，结果已复制，可直接粘贴")
         if not self.keyboard.paste():
+            if self.target_manager.is_still_target(target) and self.keyboard.unicode_text(text):
+                return DeliveryResult(True)
             return DeliveryResult(False, "未能插入文字，结果已复制，可直接粘贴")
         time.sleep(0.15)
         self.clipboard.restore_text(prior_text, temporary_sequence)
