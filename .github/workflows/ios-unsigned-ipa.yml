@@ -70,6 +70,13 @@ jobs:
           cd "$RUNNER_TEMP/ipa"
           ditto -c -k --sequesterRsrc --keepParent Payload VoiceAnywhereIOS-unsigned.ipa
 
+      - name: Verify IPA layout
+        run: |
+          IPA="$RUNNER_TEMP/ipa/VoiceAnywhereIOS-unsigned.ipa"
+          unzip -Z1 "$IPA" | grep -qx 'Payload/VoiceAnywhereIOS.app/Info.plist'
+          unzip -p "$IPA" 'Payload/VoiceAnywhereIOS.app/Info.plist' > "$RUNNER_TEMP/VoiceAnywhereInfo.plist"
+          plutil -lint "$RUNNER_TEMP/VoiceAnywhereInfo.plist"
+
       - name: Upload unsigned IPA
         uses: actions/upload-artifact@v4
         with:
