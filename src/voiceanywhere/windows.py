@@ -348,8 +348,16 @@ class DeliveryService:
             # type directly into the still-valid foreground control instead.
             if self.keyboard.unicode_text(text):
                 return DeliveryResult(True)
-            if self.clipboard.set_text(text) is not None:
-                return DeliveryResult(False, "原剪贴板无法保留，结果已复制，可直接粘贴")
+            # Some applications reject Unicode key events but accept Ctrl+V. In
+            # that case, use the result clipboard as a last delivery path and
+            # paste immediately; it cannot retain the rich clipboard content.
+            if self.target_manager.is_still_target(target):
+                if self.clipboard.set_text(text) is not None:
+                    if self.keyboard.paste():
+                        return DeliveryResult(True)
+                    return DeliveryResult(False, "未能插入文字，结果已复制，可直接粘贴")
+            elif self.clipboard.set_text(text) is not None:
+                return DeliveryResult(False, "输入目标已变化，结果已复制，可直接粘贴")
             return DeliveryResult(False, "无法插入或写入剪贴板，结果已保留")
         _prior_sequence, prior_text = snapshot
         temporary_sequence = self.clipboard.set_text(text)

@@ -34,8 +34,10 @@ class FakeKeyboard:
         self.pasted = pasted
         self.unicode_inserted = unicode_inserted
         self.typed = []
+        self.paste_calls = 0
 
     def paste(self) -> bool:
+        self.paste_calls += 1
         return self.pasted
 
     def unicode_text(self, text: str) -> bool:
@@ -74,12 +76,23 @@ def test_delivery_types_result_when_original_clipboard_cannot_be_preserved() -> 
     assert clipboard.copied == []
 
 
-def test_delivery_copies_result_when_unicode_fallback_is_rejected() -> None:
+def test_delivery_pastes_result_when_unicode_fallback_is_rejected() -> None:
     clipboard = FakeClipboard(snapshot=None)
     keyboard = FakeKeyboard(unicode_inserted=False)
     service = DeliveryService(FakeTargetManager(), clipboard, keyboard)
     result = service.deliver(TARGET, "新的文字")
-    assert not result.inserted
-    assert "剪贴板" in result.reason
+    assert result.inserted
     assert keyboard.typed == ["新的文字"]
+    assert keyboard.paste_calls == 1
+    assert clipboard.copied == ["新的文字"]
+
+
+def test_delivery_keeps_result_copied_when_unicode_and_paste_are_rejected() -> None:
+    clipboard = FakeClipboard(snapshot=None)
+    keyboard = FakeKeyboard(pasted=False, unicode_inserted=False)
+    service = DeliveryService(FakeTargetManager(), clipboard, keyboard)
+    result = service.deliver(TARGET, "新的文字")
+    assert not result.inserted
+    assert keyboard.typed == ["新的文字"]
+    assert keyboard.paste_calls == 1
     assert clipboard.copied == ["新的文字"]
