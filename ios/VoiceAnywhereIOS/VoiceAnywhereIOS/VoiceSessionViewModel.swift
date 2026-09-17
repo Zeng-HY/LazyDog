@@ -2,7 +2,7 @@ import Foundation
 import SwiftUI
 
 @MainActor
-final class VoiceSessionViewModel: ObservableObject {
+final class VoiceSessionViewModel: NSObject, ObservableObject {
     @Published private(set) var state: VoiceSessionState
     @Published private(set) var recordingSeconds: TimeInterval = 0
     @Published private(set) var transcript = ""
@@ -31,6 +31,7 @@ final class VoiceSessionViewModel: ObservableObject {
         self.client = client
         self.keychain = keychain
         self.state = (try? keychain.readAPIKey()) == nil ? .needsKey : .idle
+        super.init()
     }
 
     var hasAPIKey: Bool { (try? keychain.readAPIKey()) != nil }
@@ -170,11 +171,17 @@ final class VoiceSessionViewModel: ObservableObject {
 
     private func startDurationTimer() {
         durationTimer?.invalidate()
-        durationTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
-            Task { @MainActor in
-                self?.recordingSeconds = self?.audioRecorder.elapsedSeconds ?? 0
-            }
-        }
+        durationTimer = Timer.scheduledTimer(
+            timeInterval: 0.1,
+            target: self,
+            selector: #selector(updateRecordingSeconds),
+            userInfo: nil,
+            repeats: true
+        )
+    }
+
+    @objc private func updateRecordingSeconds() {
+        recordingSeconds = audioRecorder.elapsedSeconds
     }
 
     private func elapsedMilliseconds(from start: ContinuousClock.Instant, to end: ContinuousClock.Instant) -> Int {
