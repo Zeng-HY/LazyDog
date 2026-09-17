@@ -28,6 +28,7 @@ jobs:
 
       - name: Build iPhone app without signing
         run: |
+          set -o pipefail
           xcodebuild \
             -project VoiceAnywhereIOS.xcodeproj \
             -scheme VoiceAnywhereIOS \
@@ -38,7 +39,16 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
-            build
+            build 2>&1 | tee "$RUNNER_TEMP/xcodebuild.log"
+
+      - name: Upload Xcode build log
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: VoiceAnywhereIOS-xcodebuild-log
+          path: ${{ runner.temp }}/xcodebuild.log
+          if-no-files-found: warn
+          retention-days: 7
 
       - name: Package unsigned IPA for local re-signing
         run: |
