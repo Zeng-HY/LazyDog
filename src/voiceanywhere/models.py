@@ -19,6 +19,16 @@ class VoiceMode(str, Enum):
 OutputLanguage = Literal["follow", "zh", "en"]
 
 
+@dataclass
+class ProviderSettings:
+    text_provider: str = "openrouter"
+    text_base_url: str = "https://openrouter.ai/api/v1"
+    text_model: str = "openai/gpt-5.6-luna"
+    asr_provider: str = "openrouter"
+    asr_base_url: str = "https://openrouter.ai/api/v1"
+    asr_model: str = "openai/gpt-transcribe"
+
+
 @dataclass(frozen=True)
 class TermEntry:
     canonical: str
@@ -36,6 +46,7 @@ class AppSettings:
     mode: VoiceMode = VoiceMode.FAITHFUL
     output_language: OutputLanguage = "follow"
     terms: list[TermEntry] = field(default_factory=list)
+    providers: ProviderSettings = field(default_factory=ProviderSettings)
 
 
 @dataclass(frozen=True)

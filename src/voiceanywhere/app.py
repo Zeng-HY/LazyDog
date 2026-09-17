@@ -29,7 +29,8 @@ from PySide6.QtWidgets import (
 )
 
 from voiceanywhere.config import SettingsStore, format_terms, parse_terms
-from voiceanywhere.models import AppSettings, LatestResult, SessionState, VoiceMode
+from voiceanywhere.models import AppSettings, LatestResult, ProviderSettings, SessionState, VoiceMode
+from voiceanywhere.providers import ASR_PROVIDER_PRESETS, TEXT_PROVIDER_PRESETS, normalize_base_url, provider_preset
 from voiceanywhere.services import OpenRouterClient
 from voiceanywhere.session import VoiceSessionController
 from voiceanywhere.storage import LocalStore
@@ -88,7 +89,7 @@ class StatusBar(QWidget):
 
 
 class SettingsDialog(QDialog):
-    def __init__(self, settings: AppSettings, has_key: bool, parent: QWidget | None = None) -> None:
+    def __init__(self, settings: AppSettings, has_text_key: bool, has_asr_key: bool, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setWindowTitle("VoiceAnywhere 设置")
         self._initial_settings = settings
@@ -131,17 +132,47 @@ class SettingsDialog(QDialog):
         self.language.setCurrentIndex(max(0, self.language.findData(settings.output_language)))
         form.addRow("默认输出语言", self.language)
 
-        self.api_key = QLineEdit()
-        self.api_key.setEchoMode(QLineEdit.EchoMode.Password)
-        self.api_key.setPlaceholderText("已保存（留空不修改）" if has_key else "粘贴 OpenRouter API Key")
-        form.addRow("OpenRouter API Key", self.api_key)
-        self.key_status = QLabel("当前状态：已保存" if has_key else "当前状态：未保存")
-        form.addRow("本机凭据", self.key_status)
+        form.addRow(QLabel("整理服务（GLM / DeepSeek / OpenRouter / OpenAI）"), QLabel())
+        self.text_provider = QComboBox()
+        for preset in TEXT_PROVIDER_PRESETS:
+            self.text_provider.addItem(preset.label, preset.id)
+        self._set_provider_selection(self.text_provider, settings.providers.text_provider)
+        self.text_provider.currentIndexChanged.connect(self._apply_text_preset)
+        form.addRow("整理 API 供应商", self.text_provider)
+        self.text_base_url = QLineEdit(settings.providers.text_base_url)
+        self.text_base_url.setPlaceholderText("例如 https://api.deepseek.com")
+        form.addRow("整理 API Base URL", self.text_base_url)
+        self.text_model = QLineEdit(settings.providers.text_model)
+        form.addRow("整理模型", self.text_model)
+        self.text_api_key = QLineEdit()
+        self.text_api_key.setEchoMode(QLineEdit.EchoMode.Password)
+        self.text_api_key.setPlaceholderText("已保存（留空不修改）" if has_text_key else "粘贴整理服务 API Key")
+        form.addRow("整理 API Key", self.text_api_key)
+
+        form.addRow(QLabel("转写服务（必须具备 /audio/transcriptions 端点）"), QLabel())
+        self.asr_provider = QComboBox()
+        for preset in ASR_PROVIDER_PRESETS:
+            self.asr_provider.addItem(preset.label, preset.id)
+        self._set_provider_selection(self.asr_provider, settings.providers.asr_provider)
+        self.asr_provider.currentIndexChanged.connect(self._apply_asr_preset)
+        form.addRow("转写 API 供应商", self.asr_provider)
+        self.asr_base_url = QLineEdit(settings.providers.asr_base_url)
+        self.asr_base_url.setPlaceholderText("例如 https://api.openai.com/v1")
+        form.addRow("转写 API Base URL", self.asr_base_url)
+        self.asr_model = QLineEdit(settings.providers.asr_model)
+        form.addRow("转写模型", self.asr_model)
+        self.asr_api_key = QLineEdit()
+        self.asr_api_key.setEchoMode(QLineEdit.EchoMode.Password)
+        self.asr_api_key.setPlaceholderText("留空时复用整理 API Key；GLM/DeepSeek 用户通常需单独填写")
+        form.addRow("转写 API Key", self.asr_api_key)
+        provider_note = QLabel("GLM 和 DeepSeek 的公开聊天 API 不等同于语音转写 API。选择它们做整理时，请另设 OpenRouter、OpenAI 或兼容 ASR 服务用于转写。")
+        provider_note.setWordWrap(True)
+        form.addRow("转写说明", provider_note)
         layout.addLayout(form)
 
         consent = QLabel(
-            "录音会发送到 OpenRouter 识别服务；转写、词条和本次输出设置会发送到整理服务。"
-            "P0 不读取附近文字。API Key 使用当前 Windows 用户的 DPAPI 本地加密。"
+            "录音只发送给所设转写服务；最终转写、词条和本次输出设置只发送给所设整理服务。"
+            "API Key 使用当前 Windows 用户的 DPAPI 本地加密。"
         )
         consent.setWordWrap(True)
         layout.addWidget(consent)
@@ -152,8 +183,8 @@ class SettingsDialog(QDialog):
         self.terms.setMinimumHeight(150)
         layout.addWidget(self.terms)
 
-        self.clear_key = QCheckBox("清除已保存的 API Key")
-        self.clear_key.setEnabled(has_key)
+        self.clear_key = QCheckBox("清除已保存的整理与转写 API Key")
+        self.clear_key.setEnabled(has_text_key or has_asr_key)
         layout.addWidget(self.clear_key)
 
         buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Cancel)
@@ -161,7 +192,7 @@ class SettingsDialog(QDialog):
         buttons.rejected.connect(self.reject)
         layout.addWidget(buttons)
 
-    def values(self) -> tuple[AppSettings, str | None, bool]:
+    def values(self) -> tuple[AppSettings, str | None, str | None, bool]:
         hotkey = self.hotkey.keySequence().toString(QKeySequence.SequenceFormat.PortableText)
         parse_hotkey(hotkey)
         mode_value = self.mode.currentData()
@@ -169,15 +200,45 @@ class SettingsDialog(QDialog):
             mode = mode_value if isinstance(mode_value, VoiceMode) else VoiceMode(str(mode_value))
         except ValueError as exc:
             raise ValueError("默认模式无效") from exc
+        providers = ProviderSettings(
+            text_provider=str(self.text_provider.currentData()),
+            text_base_url=normalize_base_url(self.text_base_url.text()),
+            text_model=self.text_model.text().strip(),
+            asr_provider=str(self.asr_provider.currentData()),
+            asr_base_url=normalize_base_url(self.asr_base_url.text()),
+            asr_model=self.asr_model.text().strip(),
+        )
+        if not providers.text_base_url or not providers.text_model:
+            raise ValueError("整理 API Base URL 和模型不能为空")
+        if not providers.asr_base_url or not providers.asr_model:
+            raise ValueError("转写 API Base URL 和模型不能为空")
         settings = AppSettings(
             microphone=self.microphone.currentData(),
             hotkey=hotkey,
             mode=mode,
             output_language=self.language.currentData(),
             terms=parse_terms(self.terms.toPlainText()),
+            providers=providers,
         )
-        key = self.api_key.text().strip() or None
-        return settings, key, self.clear_key.isChecked()
+        text_key = self.text_api_key.text().strip() or None
+        asr_key = self.asr_api_key.text().strip() or None
+        return settings, text_key, asr_key, self.clear_key.isChecked()
+
+    def _set_provider_selection(self, combo: QComboBox, provider_id: str) -> None:
+        index = combo.findData(provider_id)
+        combo.setCurrentIndex(index if index >= 0 else combo.findData("custom"))
+
+    def _apply_text_preset(self) -> None:
+        preset = provider_preset(str(self.text_provider.currentData()), "text")
+        if preset and preset.id != "custom":
+            self.text_base_url.setText(preset.base_url)
+            self.text_model.setText(preset.model)
+
+    def _apply_asr_preset(self) -> None:
+        preset = provider_preset(str(self.asr_provider.currentData()), "asr")
+        if preset and preset.id != "custom":
+            self.asr_base_url.setText(preset.base_url)
+            self.asr_model.setText(preset.model)
 
 
 class RecentResultDialog(QDialog):
@@ -245,7 +306,8 @@ class VoiceAnywhereApp:
 
         self.controller = VoiceSessionController(
             settings_provider=lambda: self.settings,
-            api_key_provider=lambda: self.settings_store.secrets.get("openrouter_api_key"),
+            text_api_key_provider=self.settings_store.text_api_key,
+            asr_api_key_provider=self.settings_store.asr_api_key,
             target_manager=TargetManager(),
             delivery_service=DeliveryService(TargetManager(), Clipboard(), KeyboardInjector()),
             service_client=OpenRouterClient(),
@@ -332,22 +394,29 @@ class VoiceAnywhereApp:
             return
         dialog = SettingsDialog(
             self.settings,
-            bool(self.settings_store.secrets.get("openrouter_api_key")),
+            bool(self.settings_store.text_api_key()),
+            bool(self.settings_store.asr_api_key()),
         )
         if dialog.exec() != QDialog.DialogCode.Accepted:
             return
         try:
-            new_settings, key, clear_key = dialog.values()
+            new_settings, text_key, asr_key, clear_key = dialog.values()
             # A successful dialog close is not enough: confirm that DPAPI can read the value
             # before claiming the API key was saved.
             if clear_key:
-                self.settings_store.secrets.delete("openrouter_api_key")
-                if self.settings_store.secrets.get("openrouter_api_key"):
+                for secret_name in ("openrouter_api_key", "text_api_key", "asr_api_key"):
+                    self.settings_store.secrets.delete(secret_name)
+                if self.settings_store.text_api_key() or self.settings_store.asr_api_key():
                     raise RuntimeError("API Key 未能从本机凭据存储中清除")
-            elif key:
-                self.settings_store.secrets.set("openrouter_api_key", key)
-                if self.settings_store.secrets.get("openrouter_api_key") != key:
-                    raise RuntimeError("API Key 未能写入或读取本机凭据存储")
+            else:
+                if text_key:
+                    self.settings_store.secrets.set("text_api_key", text_key)
+                    if self.settings_store.secrets.get("text_api_key") != text_key:
+                        raise RuntimeError("整理 API Key 未能写入或读取本机凭据存储")
+                if asr_key:
+                    self.settings_store.secrets.set("asr_api_key", asr_key)
+                    if self.settings_store.secrets.get("asr_api_key") != asr_key:
+                        raise RuntimeError("转写 API Key 未能写入或读取本机凭据存储")
             hotkey_changed = new_settings.hotkey != self.settings.hotkey
             if hotkey_changed:
                 self.hotkeys.replace_main(new_settings.hotkey)
@@ -357,7 +426,7 @@ class VoiceAnywhereApp:
                 raise RuntimeError("快捷键未能写入本机设置文件")
             self.settings = new_settings
             self._sync_menu()
-            state = "已保存 API Key" if key else ("已清除 API Key" if clear_key else "设置已保存")
+            state = "已保存 API Key" if (text_key or asr_key) else ("已清除 API Key" if clear_key else "设置已保存")
             self._show_status(state)
         except Exception as exc:
             if "hotkey_changed" in locals() and hotkey_changed:

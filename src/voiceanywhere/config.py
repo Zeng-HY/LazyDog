@@ -9,7 +9,7 @@ from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 
-from voiceanywhere.models import AppSettings, TermEntry, VoiceMode
+from voiceanywhere.models import AppSettings, ProviderSettings, TermEntry, VoiceMode
 
 
 APP_DIR = Path(os.environ.get("LOCALAPPDATA", Path.home())) / "VoiceAnywhere"
@@ -138,12 +138,14 @@ class SettingsStore:
         if output_language not in {"follow", "zh", "en"}:
             output_language = "follow"
         microphone = raw.get("microphone")
+        providers = self._providers_from_dict(raw.get("providers"))
         return AppSettings(
             microphone=microphone if isinstance(microphone, int) else None,
             hotkey=raw.get("hotkey") if isinstance(raw.get("hotkey"), str) else "Ctrl+Alt+Space",
             mode=mode,
             output_language=output_language,
             terms=terms,
+            providers=providers,
         )
 
     def save(self, settings: AppSettings) -> None:
@@ -167,6 +169,31 @@ class SettingsStore:
         if scope not in {"global", "chat", "email", "neutral"}:
             scope = "global"
         return TermEntry(canonical.strip(), tuple(str(item).strip() for item in aliases if str(item).strip()), scope)
+
+    @staticmethod
+    def _providers_from_dict(value: Any) -> ProviderSettings:
+        defaults = ProviderSettings()
+        if not isinstance(value, dict):
+            return defaults
+
+        def read(name: str, default: str) -> str:
+            item = value.get(name)
+            return item.strip() if isinstance(item, str) and item.strip() else default
+
+        return ProviderSettings(
+            text_provider=read("text_provider", defaults.text_provider),
+            text_base_url=read("text_base_url", defaults.text_base_url),
+            text_model=read("text_model", defaults.text_model),
+            asr_provider=read("asr_provider", defaults.asr_provider),
+            asr_base_url=read("asr_base_url", defaults.asr_base_url),
+            asr_model=read("asr_model", defaults.asr_model),
+        )
+
+    def text_api_key(self) -> str | None:
+        return self.secrets.get("text_api_key") or self.secrets.get("openrouter_api_key")
+
+    def asr_api_key(self) -> str | None:
+        return self.secrets.get("asr_api_key") or self.text_api_key()
 
 
 def parse_terms(text: str) -> list[TermEntry]:

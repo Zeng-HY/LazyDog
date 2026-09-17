@@ -45,7 +45,8 @@ class VoiceSessionController(QObject):
     def __init__(
         self,
         settings_provider: Callable[[], AppSettings],
-        api_key_provider: Callable[[], str | None],
+        text_api_key_provider: Callable[[], str | None],
+        asr_api_key_provider: Callable[[], str | None],
         target_manager: TargetManager,
         delivery_service: DeliveryService,
         service_client: OpenRouterClient,
@@ -53,7 +54,8 @@ class VoiceSessionController(QObject):
     ) -> None:
         super().__init__()
         self._settings_provider = settings_provider
-        self._api_key_provider = api_key_provider
+        self._text_api_key_provider = text_api_key_provider
+        self._asr_api_key_provider = asr_api_key_provider
         self.target_manager = target_manager
         self.delivery_service = delivery_service
         self.service_client = service_client
@@ -63,7 +65,8 @@ class VoiceSessionController(QObject):
         self._token: str | None = None
         self._target = None
         self._asr: BatchAsrSession | None = None
-        self._api_key = ""
+        self._text_api_key = ""
+        self._asr_api_key = ""
         self._deadline = 0.0
         self.latest: LatestResult | None = None
         self.worker_completed.connect(self._on_worker_completed)
@@ -82,9 +85,13 @@ class VoiceSessionController(QObject):
             self.start()
 
     def start(self) -> bool:
-        api_key = self._api_key_provider() or ""
-        if not api_key:
-            self.status_changed.emit("请先在设置中保存 OpenRouter API Key")
+        text_api_key = self._text_api_key_provider() or ""
+        asr_api_key = self._asr_api_key_provider() or ""
+        if not text_api_key:
+            self.status_changed.emit("请先在设置中保存整理服务 API Key")
+            return False
+        if not asr_api_key:
+            self.status_changed.emit("请先在设置中保存转写服务 API Key")
             return False
         try:
             target = self.target_manager.capture()
@@ -105,7 +112,8 @@ class VoiceSessionController(QObject):
         self._token = uuid.uuid4().hex
         self._target = target
         self._asr = asr
-        self._api_key = api_key
+        self._text_api_key = text_api_key
+        self._asr_api_key = asr_api_key
         self.latest = LatestResult(session_id=self._token, app_style=target.app_style)
         self._set_state(SessionState.RECORDING)
         self.status_changed.emit("正在听")
@@ -133,7 +141,14 @@ class VoiceSessionController(QObject):
         QTimer.singleShot(int(SLOW_PROCESSING_SECONDS * 1000), lambda: self._on_slow_processing(token))
         settings = self._settings_provider()
         self._executor.submit(
-            self._run_worker, token, wav_bytes, settings, self._api_key, self._deadline, self._target.app_style
+            self._run_worker,
+            token,
+            wav_bytes,
+            settings,
+            self._text_api_key,
+            self._asr_api_key,
+            self._deadline,
+            self._target.app_style,
         )
 
     def cancel(self, message: str = "已取消") -> None:
@@ -159,7 +174,8 @@ class VoiceSessionController(QObject):
         token: str | None,
         wav_bytes: bytes,
         settings: AppSettings,
-        api_key: str,
+        text_api_key: str,
+        asr_api_key: str,
         deadline: float,
         app_style: str,
     ) -> None:
@@ -171,7 +187,11 @@ class VoiceSessionController(QObject):
         try:
             started = time.monotonic()
             transcript_result = self.service_client.transcribe(
-                wav_bytes, api_key, max(0.5, deadline - time.monotonic())
+                wav_bytes,
+                asr_api_key,
+                max(0.5, deadline - time.monotonic()),
+                base_url=settings.providers.asr_base_url,
+                model=settings.providers.asr_model,
             )
             asr_ms = int((time.monotonic() - started) * 1000)
             transcript = transcript_result.text
@@ -187,7 +207,12 @@ class VoiceSessionController(QObject):
                     confirmed_terms=tuple(settings.terms),
                 )
                 composed = self.service_client.compose(
-                    source, api_key, max(0.5, deadline - time.monotonic())
+                    source,
+                    text_api_key,
+                    max(0.5, deadline - time.monotonic()),
+                    base_url=settings.providers.text_base_url,
+                    model=settings.providers.text_model,
+                    provider_id=settings.providers.text_provider,
                 )
                 compose_ms = int((time.monotonic() - started) * 1000)
             self.worker_completed.emit(WorkerPacket(token, transcript, composed, asr_ms, compose_ms))
@@ -241,7 +266,8 @@ class VoiceSessionController(QObject):
             self.local_store.append_metric(self.latest, message, inserted)
         self._asr = None
         self._target = None
-        self._api_key = ""
+        self._text_api_key = ""
+        self._asr_api_key = ""
         self._token = None
         self._set_state(SessionState.IDLE)
         self.status_changed.emit(message)

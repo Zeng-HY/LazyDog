@@ -15,6 +15,7 @@ from voiceanywhere.playground_contract import (
     PlaygroundParameters,
     PlaygroundResult,
 )
+from voiceanywhere.providers import normalize_base_url, supports_structured_output
 
 
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
@@ -180,16 +181,27 @@ class OpenRouterClient:
         if self._owned_client:
             self.client.close()
 
-    def transcribe(self, wav_bytes: bytes, api_key: str, timeout_seconds: float) -> TranscriptResult:
+    def transcribe(
+        self,
+        wav_bytes: bytes,
+        api_key: str,
+        timeout_seconds: float,
+        *,
+        base_url: str = OPENROUTER_BASE_URL,
+        model: str = ASR_MODEL,
+    ) -> TranscriptResult:
         if not wav_bytes:
             raise ServiceError("没有可上传的录音")
+        if not normalize_base_url(base_url) or not model.strip():
+            raise ServiceError("转写服务地址或模型不能为空")
         response = self._request(
             "POST",
             "/audio/transcriptions",
             api_key,
             files={"file": ("voiceanywhere.wav", wav_bytes, "audio/wav")},
-            data={"model": ASR_MODEL},
+            data={"model": model.strip()},
             timeout=timeout_seconds,
+            base_url=base_url,
         )
         payload = self._json(response)
         text = payload.get("text")
@@ -208,6 +220,8 @@ class OpenRouterClient:
         model: str = COMPOSE_MODEL,
         reasoning_effort: str = "low",
         max_tokens: int = 4096,
+        base_url: str = OPENROUTER_BASE_URL,
+        provider_id: str = "openrouter",
     ) -> ComposeResult:
         if not model.strip():
             raise ServiceError("模型名称不能为空")
@@ -217,6 +231,8 @@ class OpenRouterClient:
             raise ServiceError("推理强度无效")
         if not 128 <= max_tokens <= 4096:
             raise ServiceError("输出上限必须在 128 到 4096 之间")
+        if not normalize_base_url(base_url):
+            raise ServiceError("整理服务地址不能为空")
         terms = [asdict(term) for term in source.confirmed_terms if term.applies_to(source.app_style)]
         input_payload = {
             "transcript": source.transcript,
@@ -231,17 +247,20 @@ class OpenRouterClient:
                 {"role": "system", "content": system_prompt.strip()},
                 {"role": "user", "content": json.dumps(input_payload, ensure_ascii=False)},
             ],
-            "reasoning": {"effort": reasoning_effort},
             "max_tokens": max_tokens,
-            "response_format": {"type": "json_schema", "json_schema": COMPOSE_SCHEMA},
-            "provider": {
+        }
+        if provider_id in {"openrouter", "openai"}:
+            body["reasoning"] = {"effort": reasoning_effort}
+        if supports_structured_output(provider_id):
+            body["response_format"] = {"type": "json_schema", "json_schema": COMPOSE_SCHEMA}
+        if provider_id == "openrouter":
+            body["provider"] = {
                 "order": ["OpenAI"],
                 "allow_fallbacks": False,
                 "require_parameters": True,
-            },
-        }
+            }
         response = self._request(
-            "POST", "/chat/completions", api_key, json=body, timeout=timeout_seconds
+            "POST", "/chat/completions", api_key, json=body, timeout=timeout_seconds, base_url=base_url
         )
         payload = self._json(response)
         choices = payload.get("choices")
@@ -288,12 +307,19 @@ class OpenRouterClient:
 
     def _request(self, method: str, url: str, api_key: str, **kwargs: Any) -> httpx.Response:
         if not api_key.strip():
-            raise ServiceError("请先在设置中保存 OpenRouter API Key")
+            raise ServiceError("请先在设置中保存 API Key")
+        base_url = normalize_base_url(kwargs.pop("base_url", OPENROUTER_BASE_URL))
+        if not base_url:
+            raise ServiceError("API Base URL 不能为空")
+        request_url = f"{base_url}{url}"
+        headers = {"Authorization": f"Bearer {api_key}"}
+        if base_url == OPENROUTER_BASE_URL:
+            headers["HTTP-Referer"] = "https://voiceanywhere.local"
         try:
             response = self.client.request(
                 method,
-                url,
-                headers={"Authorization": f"Bearer {api_key}", "HTTP-Referer": "https://voiceanywhere.local"},
+                request_url,
+                headers=headers,
                 **kwargs,
             )
             response.raise_for_status()

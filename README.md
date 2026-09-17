@@ -13,6 +13,12 @@ uv run voiceanywhere
 
 配置目录为 `%LOCALAPPDATA%\VoiceAnywhere`。API Key 使用当前 Windows 用户的 DPAPI 加密，不写入项目文件、普通日志或案例。
 
+### 多供应商 API 配置
+
+设置窗口把“整理服务”和“转写服务”分开配置。整理服务可选择 OpenRouter、OpenAI、GLM、DeepSeek 或自定义 OpenAI 兼容 Base URL；选择 GLM 或 DeepSeek 后会自动填入官方聊天端点和建议模型，但用户可按自己的套餐修改。
+
+GLM 与 DeepSeek 的公开聊天 API 不提供本程序所需的标准 `/audio/transcriptions` 端点，因此它们只能承担最终整理。录音转写仍需单独设定 OpenRouter、OpenAI 或另一个兼容转写服务；转写 Key 留空时会复用整理 Key，适合同一供应商同时支持两项能力的情形。
+
 ## 当前支持范围
 
 - P0 使用录音结束后的完整 WAV 上传，尚未实现流式识别，不把延迟目标当作已通过。
