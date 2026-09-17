@@ -1,0 +1,94 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		B00100000000000000000001 /* VoiceAnywhereIOSApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = F00100000000000000000001 /* VoiceAnywhereIOSApp.swift */; };
+		B00100000000000000000002 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = F00100000000000000000002 /* Models.swift */; };
+		B00100000000000000000003 /* KeychainStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F00100000000000000000003 /* KeychainStore.swift */; };
+		B00100000000000000000004 /* AudioRecorderService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F00100000000000000000004 /* AudioRecorderService.swift */; };
+		B00100000000000000000005 /* OpenRouterClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = F00100000000000000000005 /* OpenRouterClient.swift */; };
+		B00100000000000000000006 /* VoiceSessionViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = F00100000000000000000006 /* VoiceSessionViewModel.swift */; };
+		B00100000000000000000007 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F00100000000000000000007 /* ContentView.swift */; };
+		B00100000000000000000008 /* auto_default_policy_v1.txt in Resources */ = {isa = PBXBuildFile; fileRef = F00100000000000000000009 /* auto_default_policy_v1.txt */; };
+		B00100000000000000000009 /* RequestContractTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F00100000000000000000010 /* RequestContractTests.swift */; };
+		B00100000000000000000010 /* VoiceSessionViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F00100000000000000000011 /* VoiceSessionViewModelTests.swift */; };
+		B00100000000000000000011 /* OpenRouterClientTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F00100000000000000000014 /* OpenRouterClientTests.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		C00100000000000000000001 /* PBXContainerItemProxy */ = {isa = PBXContainerItemProxy; containerPortal = P00100000000000000000001 /* Project object */; proxyType = 1; remoteGlobalIDString = T00100000000000000000001; remoteInfo = VoiceAnywhereIOS; };
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		F00100000000000000000001 /* VoiceAnywhereIOSApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceAnywhereIOSApp.swift; sourceTree = "<group>"; };
+		F00100000000000000000002 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
+		F00100000000000000000003 /* KeychainStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainStore.swift; sourceTree = "<group>"; };
+		F00100000000000000000004 /* AudioRecorderService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioRecorderService.swift; sourceTree = "<group>"; };
+		F00100000000000000000005 /* OpenRouterClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenRouterClient.swift; sourceTree = "<group>"; };
+		F00100000000000000000006 /* VoiceSessionViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceSessionViewModel.swift; sourceTree = "<group>"; };
+		F00100000000000000000007 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		F00100000000000000000008 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Resources/Info.plist; sourceTree = "<group>"; };
+		F00100000000000000000009 /* auto_default_policy_v1.txt */ = {isa = PBXFileReference; lastKnownFileType = text; name = auto_default_policy_v1.txt; path = ../../shared/auto_default_policy_v1.txt; sourceTree = SOURCE_ROOT; };
+		F00100000000000000000010 /* RequestContractTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RequestContractTests.swift; sourceTree = "<group>"; };
+		F00100000000000000000011 /* VoiceSessionViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceSessionViewModelTests.swift; sourceTree = "<group>"; };
+		F00100000000000000000012 /* VoiceAnywhereIOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = VoiceAnywhereIOS.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		F00100000000000000000013 /* VoiceAnywhereIOSTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = VoiceAnywhereIOSTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		F00100000000000000000014 /* OpenRouterClientTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenRouterClientTests.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		PH00100000000000000000001 /* Frameworks */ = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+		PH00100000000000000000002 /* Frameworks */ = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		G00100000000000000000001 = {isa = PBXGroup; children = (G00100000000000000000002 /* VoiceAnywhereIOS */, G00100000000000000000003 /* VoiceAnywhereIOSTests */, G00100000000000000000004 /* Products */); sourceTree = "<group>"; };
+		G00100000000000000000002 /* VoiceAnywhereIOS */ = {isa = PBXGroup; children = (F00100000000000000000001, F00100000000000000000002, F00100000000000000000003, F00100000000000000000004, F00100000000000000000005, F00100000000000000000006, F00100000000000000000007, F00100000000000000000008, F00100000000000000000009); path = VoiceAnywhereIOS; sourceTree = "<group>"; };
+		G00100000000000000000003 /* VoiceAnywhereIOSTests */ = {isa = PBXGroup; children = (F00100000000000000000010, F00100000000000000000011, F00100000000000000000014); path = VoiceAnywhereIOSTests; sourceTree = "<group>"; };
+		G00100000000000000000004 /* Products */ = {isa = PBXGroup; children = (F00100000000000000000012, F00100000000000000000013); name = Products; sourceTree = "<group>"; };
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		T00100000000000000000001 /* VoiceAnywhereIOS */ = {isa = PBXNativeTarget; buildConfigurationList = CL00100000000000000000002; buildPhases = (PH00100000000000000000003 /* Sources */, PH00100000000000000000001 /* Frameworks */, PH00100000000000000000004 /* Resources */); buildRules = (); dependencies = (); name = VoiceAnywhereIOS; productName = VoiceAnywhereIOS; productReference = F00100000000000000000012; productType = "com.apple.product-type.application"; };
+		T00100000000000000000002 /* VoiceAnywhereIOSTests */ = {isa = PBXNativeTarget; buildConfigurationList = CL00100000000000000000003; buildPhases = (PH00100000000000000000005 /* Sources */, PH00100000000000000000002 /* Frameworks */, PH00100000000000000000006 /* Resources */); buildRules = (); dependencies = (D00100000000000000000001); name = VoiceAnywhereIOSTests; productName = VoiceAnywhereIOSTests; productReference = F00100000000000000000013; productType = "com.apple.product-type.bundle.unit-test"; };
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		P00100000000000000000001 /* Project object */ = {isa = PBXProject; attributes = { LastSwiftUpdateCheck = 1500; LastUpgradeCheck = 1500; TargetAttributes = { T00100000000000000000001 = { CreatedOnToolsVersion = 15.0; }; T00100000000000000000002 = { CreatedOnToolsVersion = 15.0; TestTargetID = T00100000000000000000001; }; }; }; buildConfigurationList = CL00100000000000000000001; compatibilityVersion = "Xcode 14.0"; developmentRegion = en; hasScannedForEncodings = 0; knownRegions = (en, Base, zh-Hans); mainGroup = G00100000000000000000001; productRefGroup = G00100000000000000000004; projectDirPath = ""; projectRoot = ""; targets = (T00100000000000000000001, T00100000000000000000002); };
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		PH00100000000000000000004 /* Resources */ = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (B00100000000000000000008 /* auto_default_policy_v1.txt in Resources */); runOnlyForDeploymentPostprocessing = 0; };
+		PH00100000000000000000006 /* Resources */ = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		PH00100000000000000000003 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (B00100000000000000000001, B00100000000000000000002, B00100000000000000000003, B00100000000000000000004, B00100000000000000000005, B00100000000000000000006, B00100000000000000000007); runOnlyForDeploymentPostprocessing = 0; };
+		PH00100000000000000000005 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (B00100000000000000000009, B00100000000000000000010, B00100000000000000000011); runOnlyForDeploymentPostprocessing = 0; };
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		D00100000000000000000001 = {isa = PBXTargetDependency; target = T00100000000000000000001; targetProxy = C00100000000000000000001; };
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		BC00100000000000000000001 /* Debug */ = {isa = XCBuildConfiguration; buildSettings = { CLANG_CXX_LANGUAGE_STANDARD = "gnu++20"; CLANG_ENABLE_MODULES = YES; IPHONEOS_DEPLOYMENT_TARGET = 17.0; SDKROOT = iphoneos; SWIFT_VERSION = 5.0; }; name = Debug; };
+		BC00100000000000000000002 /* Release */ = {isa = XCBuildConfiguration; buildSettings = { CLANG_CXX_LANGUAGE_STANDARD = "gnu++20"; CLANG_ENABLE_MODULES = YES; IPHONEOS_DEPLOYMENT_TARGET = 17.0; SDKROOT = iphoneos; SWIFT_COMPILATION_MODE = wholemodule; SWIFT_VERSION = 5.0; }; name = Release; };
+		BC00100000000000000000003 /* Debug */ = {isa = XCBuildConfiguration; buildSettings = { CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 1; DEVELOPMENT_TEAM = ""; GENERATE_INFOPLIST_FILE = NO; INFOPLIST_FILE = VoiceAnywhereIOS/Resources/Info.plist; IPHONEOS_DEPLOYMENT_TARGET = 17.0; MARKETING_VERSION = 1.0; PRODUCT_BUNDLE_IDENTIFIER = com.voiceanywhere.ios; PRODUCT_NAME = "$(TARGET_NAME)"; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = "1,2"; }; name = Debug; };
+		BC00100000000000000000004 /* Release */ = {isa = XCBuildConfiguration; buildSettings = { CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 1; DEVELOPMENT_TEAM = ""; GENERATE_INFOPLIST_FILE = NO; INFOPLIST_FILE = VoiceAnywhereIOS/Resources/Info.plist; IPHONEOS_DEPLOYMENT_TARGET = 17.0; MARKETING_VERSION = 1.0; PRODUCT_BUNDLE_IDENTIFIER = com.voiceanywhere.ios; PRODUCT_NAME = "$(TARGET_NAME)"; SWIFT_COMPILATION_MODE = wholemodule; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = "1,2"; }; name = Release; };
+		BC00100000000000000000005 /* Debug */ = {isa = XCBuildConfiguration; buildSettings = { BUNDLE_LOADER = "$(TEST_HOST)"; GENERATE_INFOPLIST_FILE = YES; IPHONEOS_DEPLOYMENT_TARGET = 17.0; PRODUCT_BUNDLE_IDENTIFIER = com.voiceanywhere.ios.tests; PRODUCT_NAME = "$(TARGET_NAME)"; SWIFT_VERSION = 5.0; TEST_HOST = "$(BUILT_PRODUCTS_DIR)/VoiceAnywhereIOS.app/VoiceAnywhereIOS"; }; name = Debug; };
+		BC00100000000000000000006 /* Release */ = {isa = XCBuildConfiguration; buildSettings = { BUNDLE_LOADER = "$(TEST_HOST)"; GENERATE_INFOPLIST_FILE = YES; IPHONEOS_DEPLOYMENT_TARGET = 17.0; PRODUCT_BUNDLE_IDENTIFIER = com.voiceanywhere.ios.tests; PRODUCT_NAME = "$(TARGET_NAME)"; SWIFT_VERSION = 5.0; TEST_HOST = "$(BUILT_PRODUCTS_DIR)/VoiceAnywhereIOS.app/VoiceAnywhereIOS"; }; name = Release; };
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		CL00100000000000000000001 = {isa = XCConfigurationList; buildConfigurations = (BC00100000000000000000001, BC00100000000000000000002); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+		CL00100000000000000000002 = {isa = XCConfigurationList; buildConfigurations = (BC00100000000000000000003, BC00100000000000000000004); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+		CL00100000000000000000003 = {isa = XCConfigurationList; buildConfigurations = (BC00100000000000000000005, BC00100000000000000000006); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+/* End XCConfigurationList section */
+	};
+	rootObject = P00100000000000000000001 /* Project object */;
+}

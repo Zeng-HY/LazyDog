@@ -1,0 +1,35 @@
+[project]
+name = "voiceanywhere"
+version = "0.1.0"
+description = "Windows personal voice-to-text input prototype"
+readme = "README.md"
+requires-python = ">=3.11,<3.13"
+dependencies = [
+    "comtypes>=1.4,<2; sys_platform == 'win32'",
+    "httpx>=0.28,<1",
+    "numpy>=2.1,<3",
+    "PySide6>=6.8,<7",
+    "pywin32>=308; sys_platform == 'win32'",
+    "sounddevice>=0.5,<1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pyinstaller>=6.11,<7",
+    "pytest>=8.3,<9",
+]
+
+[project.scripts]
+voiceanywhere = "voiceanywhere.app:main"
+voiceanywhere-playground = "voiceanywhere.playground:main"
+
+[build-system]
+requires = ["hatchling>=1.26"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/voiceanywhere"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

@@ -1,0 +1,58 @@
+name: Build iOS unsigned IPA
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "ios/VoiceAnywhereIOS/**"
+      - "shared/auto_default_policy_v1.txt"
+      - ".github/workflows/ios-unsigned-ipa.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build unsigned iPhone artifact
+    runs-on: macos-14
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: ios/VoiceAnywhereIOS
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Show Xcode version
+        run: xcodebuild -version
+
+      - name: Build iPhone app without signing
+        run: |
+          xcodebuild \
+            -project VoiceAnywhereIOS.xcodeproj \
+            -scheme VoiceAnywhereIOS \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath "$RUNNER_TEMP/VoiceAnywhereDerivedData" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            build
+
+      - name: Package unsigned IPA for local re-signing
+        run: |
+          APP="$RUNNER_TEMP/VoiceAnywhereDerivedData/Build/Products/Release-iphoneos/VoiceAnywhereIOS.app"
+          test -d "$APP"
+          mkdir -p "$RUNNER_TEMP/ipa/Payload"
+          cp -R "$APP" "$RUNNER_TEMP/ipa/Payload/"
+          cd "$RUNNER_TEMP/ipa"
+          ditto -c -k --sequesterRsrc --keepParent Payload VoiceAnywhereIOS-unsigned.ipa
+
+      - name: Upload unsigned IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: VoiceAnywhereIOS-unsigned-ipa
+          path: ${{ runner.temp }}/ipa/VoiceAnywhereIOS-unsigned.ipa
+          if-no-files-found: error
+          retention-days: 7
