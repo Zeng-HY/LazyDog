@@ -306,8 +306,8 @@ class VoiceAnywhereApp:
 
         self.controller = VoiceSessionController(
             settings_provider=lambda: self.settings,
-            text_api_key_provider=self.settings_store.text_api_key,
-            asr_api_key_provider=self.settings_store.asr_api_key,
+            text_api_key_provider=lambda: self.settings_store.text_api_key(self.settings.providers.text_provider),
+            asr_api_key_provider=lambda: self.settings_store.asr_api_key(self.settings.providers),
             target_manager=TargetManager(),
             delivery_service=DeliveryService(TargetManager(), Clipboard(), KeyboardInjector()),
             service_client=OpenRouterClient(),
@@ -394,8 +394,8 @@ class VoiceAnywhereApp:
             return
         dialog = SettingsDialog(
             self.settings,
-            bool(self.settings_store.text_api_key()),
-            bool(self.settings_store.asr_api_key()),
+            bool(self.settings_store.text_api_key(self.settings.providers.text_provider)),
+            bool(self.settings_store.asr_api_key(self.settings.providers)),
         )
         if dialog.exec() != QDialog.DialogCode.Accepted:
             return
@@ -406,7 +406,7 @@ class VoiceAnywhereApp:
             if clear_key:
                 for secret_name in ("openrouter_api_key", "text_api_key", "asr_api_key"):
                     self.settings_store.secrets.delete(secret_name)
-                if self.settings_store.text_api_key() or self.settings_store.asr_api_key():
+                if self.settings_store.text_api_key(new_settings.providers.text_provider) or self.settings_store.asr_api_key(new_settings.providers):
                     raise RuntimeError("API Key 未能从本机凭据存储中清除")
             else:
                 if text_key:

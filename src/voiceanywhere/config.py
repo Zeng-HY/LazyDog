@@ -189,11 +189,19 @@ class SettingsStore:
             asr_model=read("asr_model", defaults.asr_model),
         )
 
-    def text_api_key(self) -> str | None:
-        return self.secrets.get("text_api_key") or self.secrets.get("openrouter_api_key")
+    def text_api_key(self, provider_id: str | None = None) -> str | None:
+        key = self.secrets.get("text_api_key")
+        if key:
+            return key
+        return self.secrets.get("openrouter_api_key") if provider_id in {None, "openrouter"} else None
 
-    def asr_api_key(self) -> str | None:
-        return self.secrets.get("asr_api_key") or self.text_api_key()
+    def asr_api_key(self, providers: ProviderSettings | None = None) -> str | None:
+        key = self.secrets.get("asr_api_key")
+        if key:
+            return key
+        if providers is None or providers.asr_provider == providers.text_provider:
+            return self.text_api_key(providers.text_provider if providers else None)
+        return None
 
 
 def parse_terms(text: str) -> list[TermEntry]:

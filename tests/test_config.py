@@ -46,6 +46,15 @@ def test_provider_settings_round_trip(tmp_path) -> None:
     assert store.load().providers == expected.providers
 
 
+def test_asr_key_only_reuses_text_key_for_the_same_provider(tmp_path) -> None:
+    store = SettingsStore(tmp_path)
+    store.secrets.set("text_api_key", "glm-key")
+    shared = ProviderSettings(text_provider="openai", asr_provider="openai")
+    separate = ProviderSettings(text_provider="glm", asr_provider="openrouter")
+    assert store.asr_api_key(shared) == "glm-key"
+    assert store.asr_api_key(separate) is None
+
+
 def test_dpapi_secret_is_readable_only_for_current_user_and_not_plaintext(tmp_path) -> None:
     secrets = DpapiSecretStore(tmp_path)
     secrets.set("openrouter_api_key", "unit-test-secret")
