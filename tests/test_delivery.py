@@ -1,5 +1,5 @@
 from voiceanywhere.models import TargetSnapshot
-from voiceanywhere.windows import DeliveryService
+from voiceanywhere.windows import DeliveryService, PartialInputError
 
 
 class FakeTargetManager:
@@ -96,3 +96,53 @@ def test_delivery_keeps_result_copied_when_unicode_and_paste_are_rejected() -> N
     assert keyboard.typed == ["新的文字"]
     assert keyboard.paste_calls == 1
     assert clipboard.copied == ["新的文字"]
+
+
+def test_unicode_success_after_failed_paste_restores_clipboard():
+    clipboard = FakeClipboard()
+    result = DeliveryService(FakeTargetManager(), clipboard, FakeKeyboard(pasted=False)).deliver(TARGET, "文字")
+    assert result.inserted
+    assert clipboard.restores == [("old", 11)]
+
+
+def test_partial_unicode_does_not_retry_with_paste():
+    class PartialKeyboard(FakeKeyboard):
+        def unicode_text(self, text):
+            raise PartialInputError()
+
+    clipboard = FakeClipboard(snapshot=None)
+    keyboard = PartialKeyboard()
+    result = DeliveryService(FakeTargetManager(), clipboard, keyboard).deliver(TARGET, "文字")
+    assert not result.inserted
+    assert "避免重复" in result.reason
+    assert keyboard.paste_calls == 0
+    assert clipboard.copied == ["文字"]
+
+
+def test_partial_paste_does_not_retry_with_unicode():
+    class PartialKeyboard(FakeKeyboard):
+        def paste(self):
+            raise PartialInputError()
+
+    clipboard = FakeClipboard()
+    keyboard = PartialKeyboard()
+    result = DeliveryService(FakeTargetManager(), clipboard, keyboard).deliver(TARGET, "文字")
+    assert not result.inserted
+    assert keyboard.typed == []
+    assert clipboard.restores == []
+
+
+def test_target_change_during_clipboard_snapshot_prevents_typing():
+    target = FakeTargetManager()
+
+    class ChangingClipboard(FakeClipboard):
+        def snapshot_text(self):
+            target.valid = False
+            return None
+
+    clipboard = ChangingClipboard()
+    keyboard = FakeKeyboard()
+    result = DeliveryService(target, clipboard, keyboard).deliver(TARGET, "文字")
+    assert not result.inserted
+    assert keyboard.typed == []
+    assert clipboard.copied == ["文字"]

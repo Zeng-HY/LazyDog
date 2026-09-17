@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import ctypes
+import logging
 import os
 import threading
 import time
@@ -65,8 +66,28 @@ class KEYBDINPUT(ctypes.Structure):
     ]
 
 
+class MOUSEINPUT(ctypes.Structure):
+    _fields_ = [
+        ("dx", wintypes.LONG),
+        ("dy", wintypes.LONG),
+        ("mouseData", wintypes.DWORD),
+        ("dwFlags", wintypes.DWORD),
+        ("time", wintypes.DWORD),
+        ("dwExtraInfo", ctypes.c_size_t),
+    ]
+
+
+class HARDWAREINPUT(ctypes.Structure):
+    _fields_ = [
+        ("uMsg", wintypes.DWORD),
+        ("wParamL", wintypes.WORD),
+        ("wParamH", wintypes.WORD),
+    ]
+
+
 class INPUTUNION(ctypes.Union):
-    _fields_ = [("ki", KEYBDINPUT)]
+    # The mouse member determines the union size even for keyboard-only calls.
+    _fields_ = [("ki", KEYBDINPUT), ("mi", MOUSEINPUT), ("hi", HARDWAREINPUT)]
 
 
 class INPUT(ctypes.Structure):
@@ -307,7 +328,33 @@ class Clipboard:
         return self.set_text(prior_text) is not None
 
 
+class PartialInputError(RuntimeError):
+    """Some events entered the input queue; replaying the text is unsafe."""
+
+
 class KeyboardInjector:
+    def _send(self, inputs, operation: str) -> bool:
+        ctypes.set_last_error(0)
+        sent = user32.SendInput(len(inputs), ctypes.byref(inputs), ctypes.sizeof(INPUT))
+        error = ctypes.get_last_error()
+        if sent == len(inputs):
+            return True
+        # No transcript or key values are retained in diagnostics. Error 0 does
+        # not rule out UIPI: Windows does not identify UIPI blocking here.
+        logging.getLogger(__name__).warning(
+            "SendInput operation=%s sent=%d expected=%d cbSize=%d winerror=%d",
+            operation, sent, len(inputs), ctypes.sizeof(INPUT), error,
+        )
+        if sent:
+            if operation == "paste":
+                releases = (INPUT * 2)(inputs[2], inputs[3])
+                user32.SendInput(2, ctypes.byref(releases), ctypes.sizeof(INPUT))
+            elif sent % 2:
+                release = (INPUT * 1)(inputs[sent])
+                user32.SendInput(1, ctypes.byref(release), ctypes.sizeof(INPUT))
+            raise PartialInputError("键盘输入未完成，请检查已插入内容")
+        return False
+
     def paste(self) -> bool:
         inputs = (INPUT * 4)(
             INPUT(INPUT_KEYBOARD, INPUTUNION(ki=KEYBDINPUT(0x11, 0, 0, 0, 0))),
@@ -315,11 +362,12 @@ class KeyboardInjector:
             INPUT(INPUT_KEYBOARD, INPUTUNION(ki=KEYBDINPUT(0x56, 0, KEYEVENTF_KEYUP, 0, 0))),
             INPUT(INPUT_KEYBOARD, INPUTUNION(ki=KEYBDINPUT(0x11, 0, KEYEVENTF_KEYUP, 0, 0))),
         )
-        return user32.SendInput(len(inputs), ctypes.byref(inputs), ctypes.sizeof(INPUT)) == len(inputs)
+        return self._send(inputs, "paste")
 
     def unicode_text(self, text: str) -> bool:
         inputs: list[INPUT] = []
-        units = [int.from_bytes(text.encode("utf-16-le")[index:index + 2], "little") for index in range(0, len(text.encode("utf-16-le")), 2)]
+        encoded = text.encode("utf-16-le")
+        units = [int.from_bytes(encoded[index:index + 2], "little") for index in range(0, len(encoded), 2)]
         for unit in units:
             inputs.extend([
                 INPUT(INPUT_KEYBOARD, INPUTUNION(ki=KEYBDINPUT(0, unit, KEYEVENTF_UNICODE, 0, 0))),
@@ -328,7 +376,7 @@ class KeyboardInjector:
         if not inputs:
             return True
         array = (INPUT * len(inputs))(*inputs)
-        return user32.SendInput(len(array), ctypes.byref(array), ctypes.sizeof(INPUT)) == len(array)
+        return self._send(array, "unicode")
 
 
 class DeliveryService:
@@ -338,6 +386,14 @@ class DeliveryService:
         self.keyboard = keyboard
 
     def deliver(self, target: TargetSnapshot, text: str) -> DeliveryResult:
+        try:
+            return self._deliver(target, text)
+        except PartialInputError:
+            if self.clipboard.set_text(text) is not None:
+                return DeliveryResult(False, "输入可能未完整插入，结果已复制，请核对后粘贴，避免重复")
+            return DeliveryResult(False, "输入可能未完整插入，结果已保留，请核对后复制，避免重复")
+
+    def _deliver(self, target: TargetSnapshot, text: str) -> DeliveryResult:
         if not self.target_manager.is_still_target(target):
             if self.clipboard.set_text(text) is not None:
                 return DeliveryResult(False, "输入目标已变化，结果已复制，可直接粘贴")
@@ -346,6 +402,10 @@ class DeliveryService:
         if snapshot is None:
             # A rich clipboard cannot be restored faithfully. Do not replace it:
             # type directly into the still-valid foreground control instead.
+            if not self.target_manager.is_still_target(target):
+                if self.clipboard.set_text(text) is not None:
+                    return DeliveryResult(False, "输入目标已变化，结果已复制，可直接粘贴")
+                return DeliveryResult(False, "输入目标已变化，且无法写入剪贴板")
             if self.keyboard.unicode_text(text):
                 return DeliveryResult(True)
             # Some applications reject Unicode key events but accept Ctrl+V. In
@@ -369,6 +429,7 @@ class DeliveryService:
             return DeliveryResult(False, "输入目标已变化，结果已复制，可直接粘贴")
         if not self.keyboard.paste():
             if self.target_manager.is_still_target(target) and self.keyboard.unicode_text(text):
+                self.clipboard.restore_text(prior_text, temporary_sequence)
                 return DeliveryResult(True)
             return DeliveryResult(False, "未能插入文字，结果已复制，可直接粘贴")
         time.sleep(0.15)
